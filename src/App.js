@@ -1,7 +1,7 @@
 import React from "react";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import Auth from "./Auth/Auth";
-import RegisterEdit from "./Register&Edit/Register&Edit";
+import Register from "./Register/Register";
 import Dashboard from "./Dashboard/Dashboard";
 
 export default function App() {
@@ -9,7 +9,7 @@ export default function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" pathname="/" element={<Auth/>}/>
-                <Route path="/edit" pathname="/edit" element={<RegisterEdit/>}/>
+                <Route path="/register" pathname="/register" element={<Register/>}/>
                 <Route path="/dashboard" pathname="/dashboard" element={<Dashboard/>}/>
             </Routes>
         </BrowserRouter>

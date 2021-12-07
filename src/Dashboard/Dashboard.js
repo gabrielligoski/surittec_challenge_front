@@ -15,7 +15,6 @@ import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import DeleteIcon from '@mui/icons-material/Delete';
-import {visuallyHidden} from '@mui/utils';
 
 
 function createData(name, cpf, address, phone, email) {
@@ -77,32 +76,22 @@ function stableSort(array, comparator) {
 const headCells = [
     {
         id: 'name',
-        numeric: false,
-        disablePadding: true,
         label: 'Nome',
     },
     {
         id: 'cpf',
-        numeric: true,
-        disablePadding: false,
         label: 'CPF',
     },
     {
         id: 'address',
-        numeric: false,
-        disablePadding: false,
         label: 'Endereço',
     },
     {
         id: 'phone',
-        numeric: true,
-        disablePadding: false,
         label: 'Telefone',
     },
     {
         id: 'email',
-        numeric: false,
-        disablePadding: false,
         label: 'Email',
     },
 ];
@@ -113,7 +102,7 @@ export default function Dashboard() {
     const [orderBy, setOrderBy] = React.useState('name');
     const [selected, setSelected] = React.useState([]);
     const [page, setPage] = React.useState(0);
-    const [rowsPerPage, setRowsPerPage] = React.useState(5);
+    const [rowsPerPage, setRowsPerPage] = React.useState(10);
 
     const createSortHandler = (property) => (event) => {
         handleRequestSort(event, property);
@@ -123,15 +112,6 @@ export default function Dashboard() {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
-    };
-
-    const handleSelectAllClick = (event) => {
-        if (event.target.checked) {
-            const newSelecteds = rows.map((n) => n.name);
-            setSelected(newSelecteds);
-            return;
-        }
-        setSelected([]);
     };
 
     const handleClick = (event, name) => {
@@ -168,8 +148,8 @@ export default function Dashboard() {
     const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
 
     return (
-        <Box className={"w-full"}>
-            <Paper sx={{width: '100%', mb: 2}}>
+        <Box className={"w-full p-6"}>
+            <Paper className={"w-full mb-2"}>
                 <Toolbar className={"p-2"}>
                     {selected.length > 0 ? (
                         <Typography className={"flex"} variant="subtitle1">
@@ -192,22 +172,12 @@ export default function Dashboard() {
                     <Table size={'medium'}>
                         <TableHead>
                             <TableRow>
-                                <TableCell padding="checkbox">
-                                    <Checkbox
-                                        color="primary"
-                                        indeterminate={selected.length > 0 && selected.length < rows.length}
-                                        checked={rows.length > 0 && selected.length === rows.length}
-                                        onChange={handleSelectAllClick}
-                                        inputProps={{
-                                            'aria-label': 'select all desserts',
-                                        }}
-                                    />
+                                <TableCell className={"invisible"} padding="checkbox">
+                                    <Checkbox/>
                                 </TableCell>
                                 {headCells.map((headCell) => (
                                     <TableCell
                                         key={headCell.id}
-                                        align={headCell.numeric ? 'right' : 'left'}
-                                        padding={headCell.disablePadding ? 'none' : 'normal'}
                                         sortDirection={orderBy === headCell.id ? order : false}
                                     >
                                         <TableSortLabel
@@ -216,11 +186,6 @@ export default function Dashboard() {
                                             onClick={createSortHandler(headCell.id)}
                                         >
                                             {headCell.label}
-                                            {orderBy === headCell.id ? (
-                                                <Box component="span" sx={visuallyHidden}>
-                                                    {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                                                </Box>
-                                            ) : null}
                                         </TableSortLabel>
                                     </TableCell>
                                 ))}
@@ -252,18 +217,11 @@ export default function Dashboard() {
                                                     }}
                                                 />
                                             </TableCell>
-                                            <TableCell
-                                                component="th"
-                                                id={labelId}
-                                                scope="row"
-                                                padding="none"
-                                            >
-                                                {row.name}
-                                            </TableCell>
-                                            <TableCell align="right">{row.cpf}</TableCell>
-                                            <TableCell align="right">{row.address}</TableCell>
-                                            <TableCell align="right">{row.phone}</TableCell>
-                                            <TableCell align="right">{row.email}</TableCell>
+                                            <TableCell>{row.name}</TableCell>
+                                            <TableCell>{row.cpf}</TableCell>
+                                            <TableCell>{row.address}</TableCell>
+                                            <TableCell>{row.phone}</TableCell>
+                                            <TableCell>{row.email}</TableCell>
                                         </TableRow>
                                     );
                                 })}
@@ -280,7 +238,7 @@ export default function Dashboard() {
                     </Table>
                 </TableContainer>
                 <TablePagination
-                    rowsPerPageOptions={[5, 10, 25]}
+                    rowsPerPageOptions={[10, 25, 50]}
                     component="div"
                     count={rows.length}
                     rowsPerPage={rowsPerPage}

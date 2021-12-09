@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {useEffect, useState} from 'react';
 import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -15,33 +16,21 @@ import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import {Button, Modal} from "@mui/material";
+import {useLocation, useNavigate} from "react-router-dom";
 
 
-function createData(name, cpf, address, phone, email) {
+function createData(name, cpf, address, phone, email, id) {
     return {
         name,
         cpf,
         address,
         phone,
         email,
+        id
     };
 }
-
-const rows = [
-    createData('Cupcake', 305, 3.7, 67, 4.3),
-    createData('Donut', 452, 25.0, 51, 4.9),
-    createData('Eclair', 262, 16.0, 24, 6.0),
-    createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-    createData('Gingerbread', 356, 16.0, 49, 3.9),
-    createData('Honeycomb', 408, 3.2, 87, 6.5),
-    createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-    createData('Jelly Bean', 375, 0.0, 94, 0.0),
-    createData('KitKat', 518, 26.0, 65, 7.0),
-    createData('Lollipop', 392, 0.2, 98, 0.0),
-    createData('Marshmallow', 318, 0, 81, 2.0),
-    createData('Nougat', 360, 19.0, 9, 37.0),
-    createData('Oreo', 437, 18.0, 63, 4.0),
-];
 
 function descendingComparator(a, b, orderBy) {
     if (b[orderBy] < a[orderBy]) {
@@ -98,11 +87,17 @@ const headCells = [
 
 
 export default function Dashboard() {
+    const [open, setOpen] = useState(false);
     const [order, setOrder] = React.useState('asc');
     const [orderBy, setOrderBy] = React.useState('name');
     const [selected, setSelected] = React.useState([]);
     const [page, setPage] = React.useState(0);
     const [rowsPerPage, setRowsPerPage] = React.useState(10);
+    const {state} = useLocation();
+    const [deleting, setDeleting] = useState(false);
+    const {authenticated, auth} = state;
+    const [rows, setRows] = useState([])
+    const navigate = useNavigate();
 
     const createSortHandler = (property) => (event) => {
         handleRequestSort(event, property);
@@ -114,12 +109,12 @@ export default function Dashboard() {
         setOrderBy(property);
     };
 
-    const handleClick = (event, name) => {
-        const selectedIndex = selected.indexOf(name);
+    const handleClick = (event, id) => {
+        const selectedIndex = selected.indexOf(id);
         let newSelected = [];
 
         if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selected, name);
+            newSelected = newSelected.concat(selected, id);
         } else if (selectedIndex === 0) {
             newSelected = newSelected.concat(selected.slice(1));
         } else if (selectedIndex === selected.length - 1) {
@@ -147,106 +142,200 @@ export default function Dashboard() {
     // Avoid a layout jump when reaching the last page with empty rows.
     const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
 
-    return (
-        <Box className={"w-full p-6"}>
-            <Paper className={"w-full mb-2"}>
-                <Toolbar className={"p-2"}>
-                    {selected.length > 0 ? (
-                        <Typography className={"flex"} variant="subtitle1">
-                            {selected.length} selecionado(s)
-                        </Typography>
-                    ) : (
-                        <Typography className={"flex"} variant="h6">
-                            Usuários Cadastrados
-                        </Typography>
-                    )}
-                    {selected.length > 0 ? (
-                        <Tooltip title="Delete">
-                            <IconButton>
-                                <DeleteIcon/>
-                            </IconButton>
-                        </Tooltip>
-                    ) : ''}
-                </Toolbar>
-                <TableContainer>
-                    <Table size={'medium'}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell className={"invisible"} padding="checkbox">
-                                    <Checkbox/>
-                                </TableCell>
-                                {headCells.map((headCell) => (
-                                    <TableCell
-                                        key={headCell.id}
-                                        sortDirection={orderBy === headCell.id ? order : false}
-                                    >
-                                        <TableSortLabel
-                                            active={orderBy === headCell.id}
-                                            direction={orderBy === headCell.id ? order : 'asc'}
-                                            onClick={createSortHandler(headCell.id)}
-                                        >
-                                            {headCell.label}
-                                        </TableSortLabel>
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {stableSort(rows, getComparator(order, orderBy))
-                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                .map((row, index) => {
-                                    const isItemSelected = isSelected(row.name);
-                                    const labelId = `enhanced-table-checkbox-${index}`;
+    function deleteById(id) {
+        fetch("http://localhost:8080/api/person/" + id, {
+            method: 'DELETE',
+            headers: new Headers({
+                'Authorization': 'Basic ' + auth
+            })
+        })
+            .then(res => res.json())
+            .then(res => console.log(res))
+    }
 
-                                    return (
-                                        <TableRow
-                                            hover
-                                            onClick={(event) => handleClick(event, row.name)}
-                                            role="checkbox"
-                                            aria-checked={isItemSelected}
-                                            tabIndex={-1}
-                                            key={row.name}
-                                            selected={isItemSelected}
+    useEffect(() => {
+        fetch("http://localhost:8080/api/person/", {
+            method: 'get',
+            headers: new Headers({
+                'Authorization': 'Basic ' + auth
+            })
+        })
+            .then(res => res.json())
+            .then(
+                res => {
+                    let persons = []
+                    res.map(person => {
+                        persons.push(createData(person.name, person.cpf, person.address.zip, person.phone[0].phone, person.email[0], person.id))
+                    })
+                    setSelected([])
+                    setRows(persons)
+                    setDeleting(false)
+                }
+            )
+    }, [deleting])
+
+    if (authenticated)
+        return <div>
+            <Box className={"w-full p-6"}>
+                <Paper className={"w-full mb-2"}>
+                    <Toolbar className={"p-2"}>
+                        {selected.length > 0 ? (
+                            <Typography className={"flex"} variant="subtitle1">
+                                {selected.length} selecionado(s)
+                            </Typography>
+                        ) : (
+                            <Typography className={"flex"} variant="h6">
+                                Usuários Cadastrados
+                            </Typography>
+                        )}
+                        {selected.length > 0 ? (
+                            <Tooltip title="Deletar">
+                                <IconButton onClick={() => {
+                                    selected.map(i => deleteById(i))
+                                    setDeleting(true)
+                                }}>
+                                    <DeleteIcon/>
+                                </IconButton>
+                            </Tooltip>
+                        ) : ''}
+                    </Toolbar>
+                    <TableContainer>
+                        <Table size={'medium'}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell className={"invisible"} padding="checkbox">
+                                        <Checkbox/>
+                                    </TableCell>
+                                    {headCells.map((headCell) => (
+                                        <TableCell
+                                            key={headCell.id}
+                                            sortDirection={orderBy === headCell.id ? order : false}
                                         >
-                                            <TableCell padding="checkbox">
-                                                <Checkbox
-                                                    color="primary"
-                                                    checked={isItemSelected}
-                                                    inputProps={{
-                                                        'aria-labelledby': labelId,
-                                                    }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>{row.name}</TableCell>
-                                            <TableCell>{row.cpf}</TableCell>
-                                            <TableCell>{row.address}</TableCell>
-                                            <TableCell>{row.phone}</TableCell>
-                                            <TableCell>{row.email}</TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            {emptyRows > 0 && (
-                                <TableRow
-                                    style={{
-                                        height: (53) * emptyRows,
-                                    }}
-                                >
-                                    <TableCell colSpan={6}/>
+                                            <TableSortLabel
+                                                active={orderBy === headCell.id}
+                                                direction={orderBy === headCell.id ? order : 'asc'}
+                                                onClick={createSortHandler(headCell.id)}
+                                            >
+                                                {headCell.label}
+                                            </TableSortLabel>
+                                        </TableCell>
+                                    ))}
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                <TablePagination
-                    rowsPerPageOptions={[10, 25, 50]}
-                    component="div"
-                    count={rows.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
+                            </TableHead>
+                            <TableBody>
+                                {stableSort(rows, getComparator(order, orderBy))
+                                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                    .map((row, index) => {
+                                        const isItemSelected = isSelected(row.id);
+                                        const labelId = `enhanced-table-checkbox-${index}`;
+
+                                        return (
+                                            <TableRow
+                                                hover
+                                                role="checkbox"
+                                                aria-checked={isItemSelected}
+                                                tabIndex={-1}
+                                                key={row.name}
+                                                selected={isItemSelected}
+                                            >
+                                                <TableCell padding="checkbox">
+                                                    <Checkbox
+                                                        color="primary"
+                                                        checked={isItemSelected}
+                                                        onClick={(event) => handleClick(event, row.id)}
+                                                        inputProps={{
+                                                            'aria-labelledby': labelId,
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>{row.name}</TableCell>
+                                                <TableCell>{row.cpf}</TableCell>
+                                                <TableCell>{row.address}</TableCell>
+                                                <TableCell>{row.phone}</TableCell>
+                                                <TableCell>{row.email}</TableCell>
+                                                <Tooltip title="Editar">
+                                                    <IconButton>
+                                                        <EditIcon onClick={() => setOpen(true)}/>
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </TableRow>
+                                        );
+                                    })}
+                                {emptyRows > 0 && (
+                                    <TableRow
+                                        style={{
+                                            height: (53) * emptyRows,
+                                        }}
+                                    >
+                                        <TableCell colSpan={6}/>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <TablePagination
+                        rowsPerPageOptions={[10, 25, 50]}
+                        component="div"
+                        count={rows.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                    />
+                </Paper>
+                <Button
+                    variant={"outlined"}
+                    className={"w-full h-16"}
+                    onClick={() => {
+                        navigate('/register', {
+                            state:
+                                {
+                                    authenticated: authenticated,
+                                    auth: auth
+                                }
+                        })
+                    }}
+                    type="button">
+                    Cadastrar
+                </Button>
+            </Box>
+            <Modal
+                open={open}
+                onClose={() => setOpen(false)}
+                aria-labelledby="modal-modal-title"
+                aria-describedby="modal-modal-description"
+            >
+                <Box
+                    className={"shadow-xl border-2 rounded-lg border-blue-300 bg-white w-1/2 h-1/3 p-4 absolute transform translate-x-1/2 translate-y-1/2"}>
+                    <Typography id="modal-modal-title" variant="h6" component="h2">
+                        Text in a modal
+                    </Typography>
+                    <Typography id="modal-modal-description" sx={{mt: 2}}>
+                        Duis mollis, est non commodo luctus, nisi erat porttitor ligula.
+                    </Typography>
+                </Box>
+            </Modal>
+        </div>
+    else
+        return <div className="w-screen h-screen flex flex-row space-x-6">
+            <div className="flex flex-1 flex-col space-y-4 items-center justify-center">
+                <h1 className="font-bold text-blue-600 text-9xl">404</h1>
+                <p className="text-2xl font-bold text-center text-gray-800">
+                    <span className="text-red-500">Oops!</span> Page not found
+                </p>
+                <p className="text-center text-gray-500">
+                    The page you’re looking for doesn’t exist.
+                </p>
+                <Button variant={"outlined"} onClick={() => {
+                    navigate('/')
+                }}>GO HOME</Button>
+            </div>
+            <div className="">
+                <img
+                    src="https://cdn.pixabay.com/photo/2016/11/22/23/13/black-dog-1851106__340.jpg"
+                    alt="img"
+                    className="object-cover w-full h-full"
                 />
-            </Paper>
-        </Box>
-    );
+            </div>
+        </div>
 }

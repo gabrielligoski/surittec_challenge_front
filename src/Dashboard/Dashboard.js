@@ -19,9 +19,19 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import {Button, Modal} from "@mui/material";
 import {useLocation, useNavigate} from "react-router-dom";
+import Form from "../Shared/Form";
 
 
-function createData(name, cpf, address, phone, email, id) {
+function createData(name, pcpf, paddress, pphone, email, id) {
+    let cpf = pcpf.toString().substring(0, 3) + '.' + pcpf.toString().substring(3, 6)
+        + '.' + pcpf.toString().substring(6, 9) + '-' + pcpf.toString().substring(9, 11)
+
+    let address = paddress.toString().substring(0, 5) + '-' + paddress.toString().substring(5, 8)
+
+    let phone = '(' + pphone.toString().substring(0, 2) + ') ' + (pphone.length === 11 ?
+        ('9 ' + pphone.toString().substring(3, 7) + '-' + pphone.toString().substring(7, 11)) :
+        ('' + pphone.toString().substring(2, 6) + '-' + pphone.toString().substring(6, 10)))
+
     return {
         name,
         cpf,
@@ -89,15 +99,17 @@ const headCells = [
 export default function Dashboard() {
     const [open, setOpen] = useState(false);
     const [order, setOrder] = React.useState('asc');
-    const [orderBy, setOrderBy] = React.useState('name');
+    const [orderBy, setOrderBy] = React.useState('id');
     const [selected, setSelected] = React.useState([]);
     const [page, setPage] = React.useState(0);
     const [rowsPerPage, setRowsPerPage] = React.useState(10);
     const {state} = useLocation();
     const [deleting, setDeleting] = useState(false);
-    const {authenticated, auth} = state;
-    const [rows, setRows] = useState([])
+    const {authenticated, auth} = state !== null ? state : '';
+    const [rows, setRows] = useState([]);
+    const [putId, setPutId] = useState(0);
     const navigate = useNavigate();
+
 
     const createSortHandler = (property) => (event) => {
         handleRequestSort(event, property);
@@ -163,7 +175,7 @@ export default function Dashboard() {
             .then(res => res.json())
             .then(
                 res => {
-                    let persons = []
+                    const persons = []
                     res.map(person => {
                         persons.push(createData(person.name, person.cpf, person.address.zip, person.phone[0].phone, person.email[0], person.id))
                     })
@@ -203,9 +215,9 @@ export default function Dashboard() {
                         <Table size={'medium'}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell className={"invisible"} padding="checkbox">
+                                    {authenticated === 'admin' ? <TableCell className={"invisible"} padding="checkbox">
                                         <Checkbox/>
-                                    </TableCell>
+                                    </TableCell> : ''}
                                     {headCells.map((headCell) => (
                                         <TableCell
                                             key={headCell.id}
@@ -227,37 +239,34 @@ export default function Dashboard() {
                                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                     .map((row, index) => {
                                         const isItemSelected = isSelected(row.id);
-                                        const labelId = `enhanced-table-checkbox-${index}`;
-
                                         return (
                                             <TableRow
                                                 hover
                                                 role="checkbox"
                                                 aria-checked={isItemSelected}
                                                 tabIndex={-1}
-                                                key={row.name}
+                                                key={row.id}
                                                 selected={isItemSelected}
                                             >
-                                                <TableCell padding="checkbox">
+                                                {authenticated === 'admin' ? <TableCell padding="checkbox">
                                                     <Checkbox
                                                         color="primary"
                                                         checked={isItemSelected}
                                                         onClick={(event) => handleClick(event, row.id)}
-                                                        inputProps={{
-                                                            'aria-labelledby': labelId,
-                                                        }}
-                                                    />
-                                                </TableCell>
+                                                    /></TableCell> : ''}
                                                 <TableCell>{row.name}</TableCell>
                                                 <TableCell>{row.cpf}</TableCell>
                                                 <TableCell>{row.address}</TableCell>
                                                 <TableCell>{row.phone}</TableCell>
                                                 <TableCell>{row.email}</TableCell>
-                                                <Tooltip title="Editar">
+                                                {authenticated === 'admin' ? <Tooltip title="Editar">
                                                     <IconButton>
-                                                        <EditIcon onClick={() => setOpen(true)}/>
+                                                        <EditIcon onClick={() => {
+                                                            setPutId(row.id)
+                                                            setOpen(true)
+                                                        }}/>
                                                     </IconButton>
-                                                </Tooltip>
+                                                </Tooltip> : ''}
                                             </TableRow>
                                         );
                                     })}
@@ -274,7 +283,7 @@ export default function Dashboard() {
                         </Table>
                     </TableContainer>
                     <TablePagination
-                        rowsPerPageOptions={[10, 25, 50]}
+                        rowsPerPageOptions={[10, 15, 25]}
                         component="div"
                         count={rows.length}
                         rowsPerPage={rowsPerPage}
@@ -283,7 +292,7 @@ export default function Dashboard() {
                         onRowsPerPageChange={handleChangeRowsPerPage}
                     />
                 </Paper>
-                <Button
+                {authenticated === 'admin' ? <Button
                     variant={"outlined"}
                     className={"w-full h-16"}
                     onClick={() => {
@@ -297,7 +306,7 @@ export default function Dashboard() {
                     }}
                     type="button">
                     Cadastrar
-                </Button>
+                </Button> : ''}
             </Box>
             <Modal
                 open={open}
@@ -305,15 +314,7 @@ export default function Dashboard() {
                 aria-labelledby="modal-modal-title"
                 aria-describedby="modal-modal-description"
             >
-                <Box
-                    className={"shadow-xl border-2 rounded-lg border-blue-300 bg-white w-1/2 h-1/3 p-4 absolute transform translate-x-1/2 translate-y-1/2"}>
-                    <Typography id="modal-modal-title" variant="h6" component="h2">
-                        Text in a modal
-                    </Typography>
-                    <Typography id="modal-modal-description" sx={{mt: 2}}>
-                        Duis mollis, est non commodo luctus, nisi erat porttitor ligula.
-                    </Typography>
-                </Box>
+                <Form auth={auth} type={'PUT'} putId={putId}/>
             </Modal>
         </div>
     else

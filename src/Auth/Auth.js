@@ -6,7 +6,6 @@ function Auth() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(false);
-    const base64 = require('base-64');
     const navigate = useNavigate();
 
     function authenticate() {
